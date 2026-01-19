@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, Link, FileVideo, FileAudio, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface UploadZoneProps {
   onFileSelect: (file: File | null, url: string | null) => void;
@@ -12,6 +13,7 @@ export const UploadZone = ({ onFileSelect, isProcessing }: UploadZoneProps) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const { t } = useLanguage();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -134,7 +136,7 @@ export const UploadZone = ({ onFileSelect, isProcessing }: UploadZoneProps) => {
               value={inputValue}
               onChange={handleInputChange}
               onPaste={handlePaste}
-              placeholder="Drop file or paste URL here"
+              placeholder={t("upload.placeholder")}
               className="w-full h-14 pl-12 pr-12 rounded-xl bg-secondary/50 border border-border 
                          text-foreground placeholder:text-muted-foreground
                          focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
@@ -168,18 +170,18 @@ export const UploadZone = ({ onFileSelect, isProcessing }: UploadZoneProps) => {
 
           {/* Helper Text */}
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span>or</span>
+            <span>{t("upload.or")}</span>
             <label
               htmlFor="file-upload"
               className="text-primary hover:text-primary/80 cursor-pointer font-medium transition-colors"
             >
-              browse files
+              {t("upload.browse")}
             </label>
           </div>
 
           {/* Supported Formats */}
           <p className="text-xs text-muted-foreground/70">
-            Supports: YouTube, Vimeo, MP4, MKV, MOV, WebM, MP3, WAV, M4A
+            {t("upload.supportedFormats")}
           </p>
         </div>
       </div>
@@ -206,10 +208,10 @@ export const UploadZone = ({ onFileSelect, isProcessing }: UploadZoneProps) => {
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                 className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
               />
-              Analyzing...
+              {t("upload.analyzing")}
             </span>
           ) : (
-            "Analyze"
+            t("upload.analyze")
           )}
         </Button>
       </motion.div>

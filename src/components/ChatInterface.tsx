@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, ArrowLeft, Sparkles, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Message {
   id: string;
@@ -14,20 +15,19 @@ interface ChatInterfaceProps {
   onBack: () => void;
 }
 
-const suggestedPrompts = [
-  "Summarize in 5 bullets",
-  "What are the main ideas?",
-  "Explain like I'm 12",
-  "List key terms and concepts",
-];
-
 export const ChatInterface = ({ fileName, onBack }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useLanguage();
 
+  const suggestedPrompts = [
+    t("chat.suggestion1"),
+    t("chat.suggestion2"),
+    t("chat.suggestion3"),
+  ];
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -110,7 +110,7 @@ export const ChatInterface = ({ fileName, onBack }: ChatInterfaceProps) => {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h2 className="font-semibold text-foreground">Ask about your content</h2>
+          <h2 className="font-semibold text-foreground">{t("chat.title")}</h2>
           <p className="text-sm text-muted-foreground truncate max-w-[300px]">{fileName}</p>
         </div>
       </motion.div>
@@ -225,7 +225,7 @@ export const ChatInterface = ({ fileName, onBack }: ChatInterfaceProps) => {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question about the content..."
+          placeholder={t("chat.inputPlaceholder")}
           disabled={isLoading}
           className="w-full h-14 pl-5 pr-14 rounded-xl bg-secondary/50 border border-border 
                      text-foreground placeholder:text-muted-foreground
