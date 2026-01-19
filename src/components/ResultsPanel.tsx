@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { FileText, Sparkles, MessageCircle, Check, FileVideo, FileAudio, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ResultsPanelProps {
   fileName: string;
@@ -17,6 +18,7 @@ export const ResultsPanel = ({
   onDownloadSummary,
   onOpenChat,
 }: ResultsPanelProps) => {
+  const { t } = useLanguage();
   const FileIcon = isUrl ? Link : fileName.match(/\.(mp3|wav|m4a)$/i) ? FileAudio : FileVideo;
 
   return (
@@ -42,7 +44,7 @@ export const ResultsPanel = ({
             <div className="flex items-center gap-2 mt-1">
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Check className="w-4 h-4 text-green-500" />
-                <span>Analysis complete</span>
+                <span>{t("results.ready")}</span>
               </div>
             </div>
           </div>
@@ -64,7 +66,7 @@ export const ResultsPanel = ({
                        transition-all duration-200 group"
           >
             <FileText className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span className="text-sm font-medium">Full Transcript</span>
+            <span className="text-sm font-medium">{t("results.downloadTranscript")}</span>
           </Button>
         </motion.div>
 
@@ -81,7 +83,7 @@ export const ResultsPanel = ({
                        transition-all duration-200 group"
           >
             <Sparkles className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span className="text-sm font-medium">Summary</span>
+            <span className="text-sm font-medium">{t("results.downloadSummary")}</span>
           </Button>
         </motion.div>
 
@@ -96,7 +98,7 @@ export const ResultsPanel = ({
                        shadow-accent hover:shadow-lg transition-all duration-200"
           >
             <MessageCircle className="w-6 h-6" />
-            <span className="text-sm font-medium">Ask Questions</span>
+            <span className="text-sm font-medium">{t("results.askQuestions")}</span>
           </Button>
         </motion.div>
       </div>

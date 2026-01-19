@@ -1,20 +1,22 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ProcessingStateProps {
   fileName: string;
 }
 
-const steps = [
-  "Extracting audio...",
-  "Transcribing content...",
-  "Analyzing speech patterns...",
-  "Segmenting into topics...",
-  "Preparing chat interface...",
-];
-
 export const ProcessingState = ({ fileName }: ProcessingStateProps) => {
   const [currentStep, setCurrentStep] = useState(0);
+  const { t } = useLanguage();
+
+  const steps = [
+    t("processing.step1"),
+    t("processing.step2"),
+    t("processing.step3"),
+    t("processing.step4"),
+    t("processing.step5"),
+  ];
 
   useEffect(() => {
     const interval = setInterval(() => {

@@ -1,11 +1,13 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/Logo";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { UploadZone } from "@/components/UploadZone";
 import { ProcessingState } from "@/components/ProcessingState";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { ChatInterface } from "@/components/ChatInterface";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type AppState = "upload" | "processing" | "results" | "chat";
 
@@ -13,6 +15,7 @@ const Index = () => {
   const [appState, setAppState] = useState<AppState>("upload");
   const [fileName, setFileName] = useState("");
   const [isUrl, setIsUrl] = useState(false);
+  const { t } = useLanguage();
 
   const handleFileSelect = useCallback((file: File | null, url: string | null) => {
     if (file) {
@@ -39,15 +42,15 @@ const Index = () => {
 
   const handleDownloadTranscript = () => {
     toast({
-      title: "Downloading transcript",
-      description: "Your full transcript will be ready shortly.",
+      title: t("toast.downloadingTranscript"),
+      description: t("toast.downloadingTranscriptDesc"),
     });
   };
 
   const handleDownloadSummary = () => {
     toast({
-      title: "Generating summary",
-      description: "Your summary will be ready shortly.",
+      title: t("toast.generatingSummary"),
+      description: t("toast.generatingSummaryDesc"),
     });
   };
 
@@ -73,16 +76,19 @@ const Index = () => {
           <button onClick={handleReset} className="focus:outline-none">
             <Logo />
           </button>
-          {appState !== "upload" && (
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              onClick={handleReset}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              New analysis
-            </motion.button>
-          )}
+          <div className="flex items-center gap-4">
+            {appState !== "upload" && (
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                onClick={handleReset}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t("header.newAnalysis")}
+              </motion.button>
+            )}
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
@@ -105,7 +111,7 @@ const Index = () => {
                   transition={{ delay: 0.1 }}
                   className="text-4xl sm:text-5xl font-bold text-foreground mb-4 tracking-tight"
                 >
-                  Transcribe & Understand
+                  {t("app.title")}
                 </motion.h1>
                 <motion.p
                   initial={{ opacity: 0, y: 10 }}
@@ -113,7 +119,7 @@ const Index = () => {
                   transition={{ delay: 0.2 }}
                   className="text-lg text-muted-foreground max-w-lg mx-auto"
                 >
-                  Upload any video or audio, and ask questions about the content using AI.
+                  {t("app.subtitle")}
                 </motion.p>
               </div>
               <UploadZone onFileSelect={handleFileSelect} isProcessing={false} />
