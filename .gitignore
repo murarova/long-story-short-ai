@@ -12,6 +12,22 @@ dist
 dist-ssr
 *.local
 
+# Env files (secrets)
+.env
+.env.local
+.env.*.local
+
+# Client build output (if different tools used)
+client/dist
+
+# Server runtime data
+server/api/uploads
+server/api/ingestions
+
+# Server build output
+server/api/dist
+server/rag-core/dist
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
