@@ -28,11 +28,6 @@ const translations: Record<Language, Record<string, TranslationValue>> = {
     "upload.supportedFormats":
       "Підтримувані формати: MP4, MKV, MOV, WebM, MP3, WAV, M4A",
     "processing.analyzing": "Аналізуємо ваш контент",
-    "processing.step1": "Завантаження контенту...",
-    "processing.step2": "Витягування аудіо...",
-    "processing.step3": "Транскрибування вмісту...",
-    "processing.step4": "Аналіз за допомогою ШІ...",
-    "processing.step5": "Генерування результатів...",
     "results.ready": "Ваш контент готовий",
     "results.downloadTranscript": "Завантажити повний текст",
     "results.downloadSummary": "Завантажити резюме",
@@ -49,6 +44,16 @@ const translations: Record<Language, Record<string, TranslationValue>> = {
       "Ваш повний транскрипт буде готовий незабаром.",
     "toast.generatingSummary": "Генерування резюме",
     "toast.generatingSummaryDesc": "Ваше резюме буде готове незабаром.",
+    "preview.transcript": "Транскрипт",
+    "preview.summary": "Резюме",
+    "preview.download": "Завантажити",
+    "preview.loading": "Завантаження...",
+    "preview.empty": "Немає даних для попереднього перегляду.",
+    "history.title": "Історія",
+    "history.subtitle": "Останні результати (цей браузер)",
+    "history.clear": "Очистити",
+    "history.empty": "Історії ще немає. Завантажте аудіо файл, щоб почати.",
+    "history.current": "поточний",
   },
   en: {
     "app.title": "Long Story Short AI",
@@ -66,11 +71,6 @@ const translations: Record<Language, Record<string, TranslationValue>> = {
     "upload.supportedFormats":
       "Supported formats: MP4, MKV, MOV, WebM, MP3, WAV, M4A",
     "processing.analyzing": "Analyzing your content",
-    "processing.step1": "Uploading content...",
-    "processing.step2": "Extracting audio...",
-    "processing.step3": "Transcribing content...",
-    "processing.step4": "Analyzing with AI...",
-    "processing.step5": "Generating results...",
     "results.ready": "Your content is ready",
     "results.downloadTranscript": "Download Full Transcript",
     "results.downloadSummary": "Download Summary",
@@ -87,11 +87,21 @@ const translations: Record<Language, Record<string, TranslationValue>> = {
       "Your full transcript will be ready shortly.",
     "toast.generatingSummary": "Generating summary",
     "toast.generatingSummaryDesc": "Your summary will be ready shortly.",
+    "preview.transcript": "Transcript",
+    "preview.summary": "Summary",
+    "preview.download": "Download",
+    "preview.loading": "Loading...",
+    "preview.empty": "Nothing to preview yet.",
+    "history.title": "History",
+    "history.subtitle": "Your recent analyses (this browser)",
+    "history.clear": "Clear",
+    "history.empty": "No history yet. Upload an audio file to start.",
+    "history.current": "current",
   },
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(
-  undefined
+  undefined,
 );
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {

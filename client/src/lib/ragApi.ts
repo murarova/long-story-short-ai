@@ -1,5 +1,11 @@
 export type IngestionStatus = "queued" | "processing" | "ready" | "error";
 
+export type EvaluationScores = {
+  relevance: number;
+  groundedness: number;
+  clarity: number;
+};
+
 export type Ingestion = {
   id: string;
   status: IngestionStatus;
@@ -49,6 +55,22 @@ export async function createIngestion(params: {
   return await asJsonOrThrow(res);
 }
 
+export async function createIngestionFromUrl(params: {
+  url: string;
+  queryExpansions?: object | null;
+}): Promise<{ ingestionId: string; status: IngestionStatus }> {
+  const res = await fetch(`${apiBaseUrl()}/ingestions/link`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      url: params.url,
+      queryExpansions: params.queryExpansions ?? null,
+    }),
+    credentials: "include",
+  });
+  return await asJsonOrThrow(res);
+}
+
 export async function getIngestion(ingestionId: string): Promise<Ingestion> {
   const res = await fetch(`${apiBaseUrl()}/ingestions/${ingestionId}`, {
     credentials: "include",
@@ -59,7 +81,7 @@ export async function getIngestion(ingestionId: string): Promise<Ingestion> {
 export async function askIngestion(params: {
   ingestionId: string;
   question: string;
-}): Promise<{ answer: string }> {
+}): Promise<{ answer: string; evaluation: EvaluationScores }> {
   const res = await fetch(
     `${apiBaseUrl()}/ingestions/${params.ingestionId}/ask`,
     {
@@ -67,7 +89,7 @@ export async function askIngestion(params: {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ question: params.question }),
       credentials: "include",
-    }
+    },
   );
   return await asJsonOrThrow(res);
 }
@@ -77,7 +99,7 @@ export async function getTranscriptText(ingestionId: string): Promise<string> {
     `${apiBaseUrl()}/ingestions/${ingestionId}/transcript`,
     {
       credentials: "include",
-    }
+    },
   );
   const text = await res.text();
   if (res.ok) return text;

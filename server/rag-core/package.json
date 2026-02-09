@@ -14,12 +14,14 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@langchain/community": "^0.3.0",
-    "@langchain/core": "^0.3.0",
-    "@langchain/google-genai": "^0.1.0",
+    "@langchain/community": "^1.1.12",
+    "@langchain/core": "^1.1.19",
+    "@langchain/google-genai": "^2.1.15",
+    "@langchain/langgraph": "^1.1.4",
     "dotenv": "^16.4.5",
     "faiss-node": "^0.5.1",
     "fs-extra": "^11.3.3",
+    "langchain": "^1.2.18",
     "openai": "^4.104.0"
   },
   "devDependencies": {

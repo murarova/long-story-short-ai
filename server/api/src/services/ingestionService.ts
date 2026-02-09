@@ -8,11 +8,19 @@ import {
   writeFile,
 } from "fs/promises";
 import { join } from "path";
-import { createRagFromAudioBuffer } from "rag-core";
-import type { QueryExpansionsConfig } from "rag-core";
+import {
+  createRagFromAudioBuffer,
+  createRagFromTranscriptText,
+} from "rag-core";
+import type { QueryExpansionsConfig, AskResult } from "rag-core";
 import { errorDetails } from "../utils/errors.js";
+import { extractAudioToMp3, isFfmpegMissingError } from "../utils/ffmpeg.js";
 import { logLine } from "../utils/log.js";
 import { nowMs } from "../utils/time.js";
+import {
+  downloadYoutubeAudioToMp3,
+  isYtDlpMissingError,
+} from "../utils/ytdlp.js";
 
 export type IngestionStatus = "queued" | "processing" | "ready" | "error";
 
@@ -27,7 +35,7 @@ export type IngestionRecord = {
   createdAt: number;
   updatedAt: number;
   error: string | null;
-  ask: ((question: string) => Promise<{ answer: string }>) | null;
+  ask: ((question: string) => Promise<AskResult>) | null;
 };
 
 export type PublicIngestion = Pick<
@@ -44,6 +52,9 @@ const ingestionRecordPath = (id: string) => join(ingestionsDir, `${id}.json`);
 const ingestionTranscriptPath = (id: string) =>
   join(ingestionsDir, `${id}.txt`);
 
+const isVideoMimeType = (mimeType: string): boolean =>
+  mimeType.toLowerCase().startsWith("video/");
+
 const safeUnlink = async (path: string | null | undefined): Promise<void> => {
   if (!path) return;
   try {
@@ -54,7 +65,7 @@ const safeUnlink = async (path: string | null | undefined): Promise<void> => {
 };
 
 const persistIngestionRecord = async (
-  record: IngestionRecord
+  record: IngestionRecord,
 ): Promise<void> => {
   const payload = {
     id: record.id,
@@ -76,7 +87,7 @@ const persistIngestionRecord = async (
 };
 
 const loadPersistedIngestions = async (
-  ingestions: Map<string, IngestionRecord>
+  ingestions: Map<string, IngestionRecord>,
 ): Promise<void> => {
   try {
     const files = await readdir(ingestionsDir);
@@ -209,8 +220,6 @@ export class IngestionService {
     audio: Express.Multer.File;
     queryExpansions: QueryExpansionsConfig | null;
   }): Promise<IngestionRecord> {
-    await this.deleteAllForOwner(params.ownerId);
-
     const id = randomUUID();
     const now = nowMs();
 
@@ -246,6 +255,33 @@ export class IngestionService {
           id,
           msSinceCreate: nowMs() - r.createdAt,
         });
+
+        // If a video file was uploaded, extract its audio track first and then
+        // proceed with the existing audio-only pipeline.
+        if (isVideoMimeType(r.audioMimeType)) {
+          const extractedPath = join(uploadsDir, `${id}.mp3`);
+          try {
+            await extractAudioToMp3({
+              inputPath: r.audioPath,
+              outputPath: extractedPath,
+            });
+          } catch (e: unknown) {
+            if (isFfmpegMissingError(e)) {
+              throw new Error(
+                "ffmpeg is not installed. Install ffmpeg to process video uploads.",
+              );
+            }
+            throw e;
+          }
+
+          // Replace the stored path/mimetype to the extracted audio for the rest
+          // of the pipeline and for future restarts.
+          await safeUnlink(r.audioPath);
+          r.audioPath = extractedPath;
+          r.audioMimeType = "audio/mpeg";
+          r.updatedAt = nowMs();
+          if (!this.cancelled.has(id)) await persistIngestionRecord(r);
+        }
 
         const audioBuffer = await readFile(r.audioPath);
         const session = await createRagFromAudioBuffer({
@@ -296,14 +332,140 @@ export class IngestionService {
     return record;
   }
 
+  async createFromUrl(params: {
+    ownerId: string;
+    url: string;
+    queryExpansions: QueryExpansionsConfig | null;
+  }): Promise<IngestionRecord> {
+    const id = randomUUID();
+    const now = nowMs();
+
+    const audioPath = join(uploadsDir, `${id}.mp3`);
+
+    const record: IngestionRecord = {
+      id,
+      ownerId: params.ownerId,
+      audioPath,
+      audioOriginalName: params.url,
+      audioMimeType: "audio/mpeg",
+      transcriptPath: null,
+      status: "queued",
+      createdAt: now,
+      updatedAt: now,
+      error: null,
+      ask: null,
+    };
+
+    this.ingestions.set(id, record);
+    await persistIngestionRecord(record);
+
+    queueMicrotask(async () => {
+      const r = this.ingestions.get(id);
+      if (!r) return;
+      if (this.cancelled.has(id)) return;
+
+      r.status = "processing";
+      r.updatedAt = nowMs();
+      if (!this.cancelled.has(id)) await persistIngestionRecord(r);
+
+      try {
+        logLine("stdout", {
+          at: "ingestions.processing.start",
+          id,
+          msSinceCreate: nowMs() - r.createdAt,
+        });
+
+        try {
+          await downloadYoutubeAudioToMp3({
+            url: params.url,
+            outputPath: r.audioPath,
+          });
+        } catch (e: unknown) {
+          if (isYtDlpMissingError(e)) {
+            throw new Error(
+              "yt-dlp is not installed. Install yt-dlp (and ffmpeg) to process YouTube links.",
+            );
+          }
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg.includes("HTTP Error 403")) {
+            throw new Error(
+              "YouTube download failed (HTTP 403). Try updating yt-dlp to the latest version or retry later.",
+            );
+          }
+          throw e;
+        }
+
+        const audioBuffer = await readFile(r.audioPath);
+        const session = await createRagFromAudioBuffer({
+          audioBuffer,
+          audioSource: params.url,
+          audioFileName: `${id}.mp3`,
+          audioMimeType: r.audioMimeType,
+          queryExpansions: params.queryExpansions,
+        });
+
+        if (this.cancelled.has(id) || !this.ingestions.get(id)) return;
+
+        const transcriptPath = join(ingestionsDir, `${id}.txt`);
+        await writeFile(transcriptPath, session.transcriptText ?? "", "utf-8");
+        r.transcriptPath = transcriptPath;
+
+        r.ask = session.ask;
+        r.status = "ready";
+        r.updatedAt = nowMs();
+        if (!this.cancelled.has(id) && this.ingestions.get(id))
+          await persistIngestionRecord(r);
+        logLine("stdout", {
+          at: "ingestions.processing.ready",
+          id,
+          msTotal: r.updatedAt - r.createdAt,
+          chunks: Array.isArray(session.chunks) ? session.chunks.length : null,
+        });
+      } catch (e: unknown) {
+        r.ask = null;
+        r.status = "error";
+        const details = errorDetails(e);
+        r.error = isProd
+          ? details.message
+          : `${details.name}: ${details.message}`;
+        r.updatedAt = nowMs();
+        if (!this.cancelled.has(id) && this.ingestions.get(id))
+          await persistIngestionRecord(r);
+        logLine("stderr", {
+          at: "ingestions.processing.error",
+          id,
+          msTotal: r.updatedAt - r.createdAt,
+          error: details,
+        });
+      }
+    });
+
+    return record;
+  }
+
   async ask(
     ownerId: string,
     id: string,
-    question: string
-  ): Promise<{ answer: string } | null> {
+    question: string,
+  ): Promise<AskResult | null> {
     const record = this.get(ownerId, id);
     if (!record) return null;
-    if (record.status !== "ready" || !record.ask) return null;
-    return await record.ask(question);
+    if (record.status !== "ready") return null;
+
+    // Fast path: reuse in-memory closure (same process lifetime).
+    if (record.ask) return await record.ask(question);
+
+    // After a server restart, we don't persist function closures.
+    // Recreate an ask function from the persisted transcript on demand.
+    if (!record.transcriptPath) return null;
+    const transcriptText = await readFile(record.transcriptPath, "utf-8");
+    const session = await createRagFromTranscriptText({
+      transcriptText,
+      transcriptSource: record.audioOriginalName,
+      queryExpansions: null,
+    });
+    const ask = session.ask;
+    record.ask = ask;
+    return await ask(question);
   }
 }

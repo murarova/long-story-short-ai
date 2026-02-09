@@ -1,6 +1,13 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Link, FileAudio, X } from "lucide-react";
+import {
+  Upload,
+  Link,
+  FileAudio,
+  FileVideo,
+  Trash,
+  Youtube,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -43,7 +50,7 @@ export const UploadZone = ({ onFileSelect, isProcessing }: UploadZoneProps) => {
         setInputValue(files[0].name);
       }
     },
-    []
+    [],
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,11 +89,12 @@ export const UploadZone = ({ onFileSelect, isProcessing }: UploadZoneProps) => {
         onDrop={handleDrop}
         className={`
           relative rounded-2xl border-2 border-dashed transition-all duration-300 p-8
-          ${isDragOver 
-            ? 'border-primary bg-accent-soft scale-[1.02]' 
-            : 'border-border bg-card hover:border-muted-foreground/30'
+          ${
+            isDragOver
+              ? "border-primary bg-accent-soft scale-[1.02]"
+              : "border-border bg-card hover:border-muted-foreground/30"
           }
-          ${isProcessing ? 'pointer-events-none opacity-60' : ''}
+          ${isProcessing ? "pointer-events-none opacity-60" : ""}
         `}
       >
         <div className="flex flex-col items-center gap-6">
@@ -102,20 +110,31 @@ export const UploadZone = ({ onFileSelect, isProcessing }: UploadZoneProps) => {
               transition={{ delay: 0.05 }}
               className="w-12 h-12 rounded-xl bg-accent-soft flex items-center justify-center"
             >
-              <Upload className="w-6 h-6 text-primary" />
+              <FileVideo className="w-6 h-6 text-primary" />
             </motion.div>
             <motion.div
               animate={{ y: isDragOver ? -4 : 0 }}
               transition={{ delay: 0.1 }}
               className="w-12 h-12 rounded-xl bg-accent-soft flex items-center justify-center"
             >
-              <FileAudio className="w-6 h-6 text-primary" />
+              <Link className="w-6 h-6 text-primary" />
+            </motion.div>
+            <motion.div
+              animate={{ y: isDragOver ? -4 : 0 }}
+              transition={{ delay: 0.1 }}
+              className="w-12 h-12 rounded-xl bg-accent-soft flex items-center justify-center"
+            >
+              <Youtube className="w-6 h-6 text-primary" />
             </motion.div>
           </div>
 
           <div className="w-full relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-              {isUrl ? <Link className="w-5 h-5" /> : <Upload className="w-5 h-5" />}
+              {isUrl ? (
+                <Link className="w-5 h-5" />
+              ) : (
+                <Upload className="w-5 h-5" />
+              )}
             </div>
             <input
               type="text"
@@ -135,10 +154,10 @@ export const UploadZone = ({ onFileSelect, isProcessing }: UploadZoneProps) => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   onClick={clearInput}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground 
+                  className="absolute right-4 inset-y-0 my-auto h-fit text-muted-foreground 
                              hover:text-foreground transition-colors p-1 rounded-full hover:bg-muted"
                 >
-                  <X className="w-4 h-4" />
+                  <Trash className="w-4 h-4" />
                 </motion.button>
               )}
             </AnimatePresence>
@@ -147,7 +166,7 @@ export const UploadZone = ({ onFileSelect, isProcessing }: UploadZoneProps) => {
           <input
             type="file"
             id="file-upload"
-            accept="audio/*,.mp3,.wav,.m4a"
+            accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.webm,.mp4,.mov,.mkv"
             onChange={handleFileInput}
             className="hidden"
           />
