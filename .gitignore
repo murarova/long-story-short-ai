@@ -38,3 +38,5 @@ server/rag-core/dist
 *.njsproj
 *.sln
 *.sw?
+
+.vite
