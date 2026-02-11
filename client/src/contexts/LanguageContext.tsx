@@ -27,7 +27,8 @@ const translations: Record<Language, Record<string, TranslationValue>> = {
     "upload.analyzing": "Аналізую...",
     "upload.supportedFormats":
       "Підтримувані формати: MP4, MKV, MOV, WebM, MP3, WAV, M4A",
-    "processing.analyzing": "Аналізуємо ваш контент",
+    "processing.analyzing": "Аналізуємо ваш контент...",
+    "processing.cancel": "Скасувати",
     "results.ready": "Ваш контент готовий",
     "results.downloadTranscript": "Завантажити повний текст",
     "results.downloadSummary": "Завантажити резюме",
@@ -38,6 +39,17 @@ const translations: Record<Language, Record<string, TranslationValue>> = {
     "chat.suggestion1": "Підсумуй у 5 пунктах",
     "chat.suggestion2": "Які основні ідеї?",
     "chat.suggestion3": "Поясни як для 12-річного",
+    "chat.readyTitle": "Готові досліджувати",
+    "chat.readySubtitle":
+      "Задайте будь-яке питання про ваш контент або спробуйте одну з підказок нижче.",
+    "chat.noIngestion":
+      "Оберіть аналіз з Історії (або завантажте новий файл), щоб почати задавати питання.",
+    "chat.showContext": "Показати контекст",
+    "chat.errorTitle": "Помилка",
+    "chat.evaluation.relevance": "Релевантність",
+    "chat.evaluation.groundedness": "Обґрунтованість",
+    "chat.evaluation.clarity": "Зрозумілість",
+    "upload.fileTooLarge": "Файл занадто великий",
     "header.newAnalysis": "Новий аналіз",
     "toast.downloadingTranscript": "Завантаження транскрипту",
     "toast.downloadingTranscriptDesc":
@@ -71,6 +83,7 @@ const translations: Record<Language, Record<string, TranslationValue>> = {
     "upload.supportedFormats":
       "Supported formats: MP4, MKV, MOV, WebM, MP3, WAV, M4A",
     "processing.analyzing": "Analyzing your content",
+    "processing.cancel": "Cancel",
     "results.ready": "Your content is ready",
     "results.downloadTranscript": "Download Full Transcript",
     "results.downloadSummary": "Download Summary",
@@ -81,6 +94,17 @@ const translations: Record<Language, Record<string, TranslationValue>> = {
     "chat.suggestion1": "Summarize in 5 bullets",
     "chat.suggestion2": "What are the main ideas?",
     "chat.suggestion3": "Explain like I'm 12",
+    "chat.readyTitle": "Ready to explore",
+    "chat.readySubtitle":
+      "Ask any question about your content, or try one of the suggestions below.",
+    "chat.noIngestion":
+      "Select an analysis from History (or upload a new file) to start asking questions.",
+    "chat.showContext": "Show retrieved context",
+    "chat.errorTitle": "Error",
+    "chat.evaluation.relevance": "Relevance",
+    "chat.evaluation.groundedness": "Groundedness",
+    "chat.evaluation.clarity": "Clarity",
+    "upload.fileTooLarge": "File too large",
     "header.newAnalysis": "New analysis",
     "toast.downloadingTranscript": "Downloading transcript",
     "toast.downloadingTranscriptDesc":

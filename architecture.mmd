@@ -1,0 +1,104 @@
+graph TD
+    subgraph Client["Client (React + Vite)"]
+        UI[Upload Zone / Chat UI]
+        History[History Panel]
+    end
+
+    subgraph API["API Server (Express)"]
+        Routes[REST Routes]
+        Multer[Multer File Upload]
+        YtDlp[yt-dlp YouTube Download]
+        FFmpeg[ffmpeg Video → Audio]
+        IngSvc[Ingestion Service]
+        Mutex[Per-Ingestion Mutex]
+        Timeout[120s Request Timeout]
+    end
+
+    subgraph RAG["RAG Core Library"]
+        subgraph DataPrep["1. Data Preparation"]
+            Whisper[OpenAI Whisper Transcription]
+            Chunking[RecursiveCharacterTextSplitter]
+        end
+
+        subgraph Indexing["2. RAG Pipeline"]
+            Embeddings[OpenAI Embeddings<br/>text-embedding-3-small]
+            FAISS[FAISS Vector Store]
+            BM25[BM25 Keyword Index]
+            Hybrid[Hybrid Retriever — RRF]
+        end
+
+        subgraph Agent["3. Reasoning & Tool Calling"]
+            LangGraph[LangChain Agent Loop<br/>recursionLimit: 4]
+            SearchTool[search_transcript]
+            FullTool[get_full_transcript]
+            SummaryTool[get_summary<br/>cached per session]
+            AnswerCache[Answer Cache<br/>per session]
+        end
+
+        subgraph Eval["4. Evaluation"]
+            Judge[LLM-as-Judge<br/>only for summaries]
+            Relevance[Relevance 0–10]
+            Groundedness[Groundedness 0–10]
+            Clarity[Clarity 0–10]
+        end
+
+        Metrics[Model Call Metrics<br/>agent/helper/eval counts]
+    end
+
+    subgraph Models["External LLM Services"]
+        OpenAI_Chat[OpenAI GPT-4o<br/>Agent Model]
+        OpenAI_Mini[OpenAI GPT-4o-mini<br/>Helper + Eval Models]
+        WhisperAPI[OpenAI Whisper API]
+    end
+
+    UI -- upload file --> Routes
+    UI -- paste YouTube URL --> Routes
+    UI -- ask question --> Routes
+    History -- clear history --> Routes
+
+    Routes --> Multer
+    Routes --> YtDlp
+    Multer --> FFmpeg
+    Multer --> IngSvc
+    FFmpeg --> IngSvc
+    YtDlp --> IngSvc
+    Routes --> Mutex
+    Routes --> Timeout
+
+    IngSvc --> Whisper
+    Whisper --> WhisperAPI
+    Whisper --> Chunking
+
+    Chunking --> Embeddings
+    Embeddings --> OpenAI_Mini
+    Embeddings --> FAISS
+    Chunking --> BM25
+    FAISS --> Hybrid
+    BM25 --> Hybrid
+
+    IngSvc -- user question --> Mutex
+    Mutex -- question --> LangGraph
+    LangGraph --> AnswerCache
+    AnswerCache -- cache miss --> LangGraph
+    LangGraph --> SearchTool
+    LangGraph --> FullTool
+    LangGraph --> SummaryTool
+    SearchTool --> Hybrid
+    SummaryTool --> OpenAI_Mini
+    SummaryTool -- cached summary --> SummaryTool
+    LangGraph --> OpenAI_Chat
+
+    LangGraph -- answer + context --> AnswerCache
+    AnswerCache -- summary question? --> Judge
+    Judge --> OpenAI_Mini
+    Judge --> Relevance
+    Judge --> Groundedness
+    Judge --> Clarity
+
+    LangGraph --> Metrics
+    SummaryTool --> Metrics
+    Judge --> Metrics
+
+    LangGraph -- answer + toolCalls --> Routes
+    Judge -- scores (summary only) --> Routes
+    Routes -- answer + scores --> UI

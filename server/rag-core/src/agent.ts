@@ -1,6 +1,6 @@
 import { createAgent, AIMessage, ToolMessage } from "langchain";
 import type { BaseMessage } from "@langchain/core/messages";
-import type { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import type { ChatOpenAI } from "@langchain/openai";
 import type { DynamicTool } from "@langchain/core/tools";
 
 const AGENT_SYSTEM_PROMPT =
@@ -15,7 +15,9 @@ const AGENT_SYSTEM_PROMPT =
   "   - If the context is insufficient, try a different search query or use another tool.\n" +
   "4. Before giving your final answer, verify it is supported by the retrieved context.\n" +
   "5. If you cannot find relevant information after multiple attempts, state that clearly.\n\n" +
-  "Always cite information as coming from the audio transcript.";
+  "Always cite information as coming from the audio transcript.\n\n" +
+  "Respond in the same language as the user's question whenever possible. " +
+  "If the user does not specify a language and asks for a summary or description, use the dominant language of the transcript.";
 
 export type AgentAskResult = {
   answer: string;
@@ -40,7 +42,7 @@ function textContent(msg: BaseMessage): string {
 }
 
 export async function buildAgent(
-  chatModel: ChatGoogleGenerativeAI,
+  chatModel: ChatOpenAI,
   tools: DynamicTool[],
 ): Promise<(question: string) => Promise<AgentAskResult>> {
   const agent = createAgent({
@@ -52,7 +54,7 @@ export async function buildAgent(
   return async (question: string): Promise<AgentAskResult> => {
     const result = await agent.invoke(
       { messages: [{ role: "user" as const, content: question }] },
-      { recursionLimit: 12 },
+      { recursionLimit: 4 },
     );
 
     const messages: BaseMessage[] = result.messages ?? [];

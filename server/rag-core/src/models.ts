@@ -1,17 +1,16 @@
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { OpenAIEmbeddings, ChatOpenAI } from "@langchain/openai";
 import { Embeddings } from "@langchain/core/embeddings";
 import { GOOGLE_CHAT_MODEL } from "./config.js";
 
 export function getEmbeddings(
-  modelName: string = process.env.GOOGLE_EMBEDDING_MODEL ||
-    "gemini-embedding-001",
+  modelName: string = process.env.OPENAI_EMBEDDING_MODEL ||
+    "text-embedding-3-small",
 ): Embeddings {
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("GOOGLE_API_KEY environment variable is not set.");
+    throw new Error("OPENAI_API_KEY environment variable is not set.");
   }
-  return new GoogleGenerativeAIEmbeddings({
+  return new OpenAIEmbeddings({
     model: modelName,
     apiKey,
   });
@@ -20,14 +19,14 @@ export function getEmbeddings(
 export function getChatModel(
   modelName: string = GOOGLE_CHAT_MODEL,
   temperature: number = 0.2,
-): ChatGoogleGenerativeAI {
-  const apiKey = process.env.GOOGLE_API_KEY;
+): ChatOpenAI {
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("GOOGLE_API_KEY environment variable is not set.");
+    throw new Error("OPENAI_API_KEY environment variable is not set.");
   }
-  const finalModelName = process.env.GOOGLE_CHAT_MODEL || modelName;
+  const finalModelName = process.env.OPENAI_CHAT_MODEL || modelName;
 
-  return new ChatGoogleGenerativeAI({
+  return new ChatOpenAI({
     model: finalModelName,
     temperature,
     apiKey,

@@ -78,10 +78,17 @@ export async function getIngestion(ingestionId: string): Promise<Ingestion> {
   return await asJsonOrThrow(res);
 }
 
+export type AskResponse = {
+  answer: string;
+  toolCalls: string[];
+  retrievedContext: string;
+  evaluation?: EvaluationScores;
+};
+
 export async function askIngestion(params: {
   ingestionId: string;
   question: string;
-}): Promise<{ answer: string; evaluation: EvaluationScores }> {
+}): Promise<AskResponse> {
   const res = await fetch(
     `${apiBaseUrl()}/ingestions/${params.ingestionId}/ask`,
     {
@@ -92,6 +99,28 @@ export async function askIngestion(params: {
     },
   );
   return await asJsonOrThrow(res);
+}
+
+export async function deleteIngestion(ingestionId: string): Promise<void> {
+  try {
+    await fetch(`${apiBaseUrl()}/ingestions/${ingestionId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+  } catch {
+    // fire-and-forget
+  }
+}
+
+export async function deleteAllIngestions(): Promise<void> {
+  try {
+    await fetch(`${apiBaseUrl()}/ingestions`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+  } catch {
+    // fire-and-forget
+  }
 }
 
 export async function getTranscriptText(ingestionId: string): Promise<string> {

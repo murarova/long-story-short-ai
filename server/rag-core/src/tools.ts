@@ -1,10 +1,10 @@
 import { DynamicTool } from "@langchain/core/tools";
 import type { BaseRetriever } from "@langchain/core/retrievers";
-import type { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import type { ChatOpenAI } from "@langchain/openai";
 
 export type ToolContext = {
   retriever: BaseRetriever;
-  chatModel: ChatGoogleGenerativeAI;
+  chatModel: ChatOpenAI;
   transcriptText: string;
 };
 
@@ -40,12 +40,16 @@ export function createTranscriptTools(ctx: ToolContext): DynamicTool[] {
     },
   });
 
+  let cachedSummary: string | null = null;
+
   const getSummary = new DynamicTool({
     name: "get_summary",
     description:
       "Generate a concise summary of the entire transcript. " +
       "Use when the user asks for an overview, key points, or a summary.",
     func: async () => {
+      if (cachedSummary) return cachedSummary;
+
       const truncated =
         ctx.transcriptText.length > 10_000
           ? ctx.transcriptText.slice(0, 10_000) + "\n[...truncated]"
@@ -57,7 +61,7 @@ export function createTranscriptTools(ctx: ToolContext): DynamicTool[] {
           content:
             "You are a summarization assistant. Provide a clear, concise summary " +
             "of the following transcript. Focus on the key points, main topics, " +
-            "and important takeaways.",
+            "and important takeaways. Respond in the same language as the transcript text unless the user explicitly requested another language.",
         },
         {
           role: "human",
@@ -65,9 +69,13 @@ export function createTranscriptTools(ctx: ToolContext): DynamicTool[] {
         },
       ]);
 
-      return typeof response.content === "string"
-        ? response.content
-        : JSON.stringify(response.content);
+      const text =
+        typeof response.content === "string"
+          ? response.content
+          : JSON.stringify(response.content);
+
+      cachedSummary = text;
+      return text;
     },
   });
 

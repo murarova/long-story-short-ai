@@ -23,12 +23,6 @@ const fadeScale = {
   exit: { opacity: 0, scale: 0.95 },
 };
 
-const slideX = {
-  initial: { opacity: 0, x: 20 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -20 },
-};
-
 const Main = () => {
   const { t, tList } = useLanguage();
   const {
@@ -41,12 +35,14 @@ const Main = () => {
     previewTab,
     previewLoading,
     previewContent,
+    summaryEvaluation,
     clearHistory,
     handleFileSelect,
     handleDownloadTranscript,
     handleDownloadSummary,
     handleOpenChat,
     handleOpenChatFor,
+    handleCancel,
     handleReset,
     setPreviewTab,
     downloadPreview,
@@ -140,7 +136,7 @@ const Main = () => {
                     variants={fadeScale}
                     className="w-full"
                   >
-                    <ProcessingState fileName={fileName} />
+                    <ProcessingState fileName={fileName} onCancel={handleCancel} />
                   </AnimatedStage>
                 )}
 
@@ -157,6 +153,7 @@ const Main = () => {
                         tab={previewTab}
                         onTabChange={setPreviewTab}
                         content={previewContent}
+                        summaryEvaluation={summaryEvaluation}
                         chat={
                           <ChatInterface
                             embedded

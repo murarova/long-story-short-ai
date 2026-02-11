@@ -7,6 +7,8 @@ import { HybridRetriever, QueryExpansionsConfig } from "./retrieval.js";
 import { createTranscriptTools } from "./tools.js";
 import { buildAgent } from "./agent.js";
 import { evaluateAnswer, type EvaluationScores } from "./evaluation.js";
+import { GOOGLE_CHAT_MODEL_LIGHT } from "./config.js";
+import type { ChatOpenAI } from "@langchain/openai";
 
 export type CreateRagFromAudioOptions = {
   audioBuffer: Uint8Array;
@@ -38,7 +40,10 @@ export type CreateRagFromTranscriptTextOptions = {
 
 export type AskResult = {
   answer: string;
-  evaluation: EvaluationScores;
+  toolCalls: string[];
+  retrievedContext: string;
+  // Optional: turned off for interactive chat to save model calls.
+  evaluation?: EvaluationScores;
 };
 
 export type RagFromBuffersSession = {
@@ -46,6 +51,25 @@ export type RagFromBuffersSession = {
   chunks: Document[];
   transcriptText: string;
 };
+
+type ModelCounterKey = "agent" | "helper" | "eval";
+type ModelCounters = Record<ModelCounterKey, number>;
+
+function instrumentModel(
+  model: ChatOpenAI,
+  counters: ModelCounters,
+  key: ModelCounterKey,
+): ChatOpenAI {
+  const originalInvoke = model.invoke.bind(model) as (
+    input: unknown,
+    options?: unknown,
+  ) => Promise<unknown>;
+  (model as any).invoke = async (input: unknown, options?: unknown) => {
+    counters[key] += 1;
+    return originalInvoke(input, options);
+  };
+  return model;
+}
 
 async function buildSession(
   chunks: Document[],
@@ -62,9 +86,23 @@ async function buildSession(
   const embeddings = getEmbeddings();
   const vectorStore = await buildVectorStoreInMemory(chunks, embeddings);
   const temperature = options.temperature ?? 0.2;
-  const agentModel = getChatModel(undefined, temperature);
-  const toolModel = getChatModel(undefined, temperature);
-  const evalModel = getChatModel(undefined, 0);
+  const counters: ModelCounters = { agent: 0, helper: 0, eval: 0 };
+  const agentModel = instrumentModel(
+    getChatModel(undefined, temperature),
+    counters,
+    "agent",
+  );
+  const helperModel = instrumentModel(
+    getChatModel(GOOGLE_CHAT_MODEL_LIGHT, temperature),
+    counters,
+    "helper",
+  );
+  const evalModel = instrumentModel(
+    getChatModel(GOOGLE_CHAT_MODEL_LIGHT, 0),
+    counters,
+    "eval",
+  );
+  const answerCache = new Map<string, AskResult>();
 
   const retriever = new HybridRetriever(
     vectorStore,
@@ -79,7 +117,7 @@ async function buildSession(
 
   const tools = createTranscriptTools({
     retriever,
-    chatModel: toolModel,
+    chatModel: helperModel,
     transcriptText,
   });
 
@@ -87,16 +125,55 @@ async function buildSession(
 
   return {
     ask: async (question: string): Promise<AskResult> => {
+      const key = question.trim().replace(/\s+/g, " ").toLowerCase();
+      const cached = answerCache.get(key);
+      if (cached) return cached;
+
+      counters.agent = 0;
+      counters.helper = 0;
+      counters.eval = 0;
+      const startedAt = Date.now();
+
       const result = await agentAsk(question);
 
-      const evaluation = await evaluateAnswer(
-        evalModel,
-        question,
-        result.answer,
-        result.retrievedContext,
+      // Only run evaluation for summarization-style questions to save tokens.
+      const normalized = question.toLowerCase();
+      const isSummaryQuestion = normalized.startsWith(
+        "create a concise summary of the audio content.",
       );
 
-      return { answer: result.answer, evaluation };
+      let evaluation: EvaluationScores | undefined;
+      if (isSummaryQuestion) {
+        evaluation = await evaluateAnswer(
+          evalModel,
+          question,
+          result.answer,
+          result.retrievedContext,
+        );
+      }
+
+      const fullResult: AskResult = {
+        answer: result.answer,
+        toolCalls: result.toolCalls,
+        retrievedContext: result.retrievedContext,
+        evaluation,
+      };
+
+      const elapsedMs = Date.now() - startedAt;
+      const totalCalls = counters.agent + counters.helper + counters.eval;
+      console.log(
+        JSON.stringify({
+          at: "rag.ask.metrics",
+          agentCalls: counters.agent,
+          helperCalls: counters.helper,
+          evalCalls: counters.eval,
+          totalModelCalls: totalCalls,
+          elapsedMs,
+        }),
+      );
+
+      answerCache.set(key, fullResult);
+      return fullResult;
     },
     chunks,
     transcriptText,

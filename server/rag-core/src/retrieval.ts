@@ -5,7 +5,7 @@ import { BM25Retriever } from "@langchain/community/retrievers/bm25";
 import { readFileSync } from "node:fs";
 
 function normalizeQuery(query: string): string {
-  return query.replace(/[’‘]/g, "'").trim().replace(/\s+/g, " ");
+  return query.replace(/['']/g, "'").trim().replace(/\s+/g, " ");
 }
 
 function tokenizeQuery(query: string): string[] {
@@ -286,37 +286,5 @@ export class HybridRetriever extends BaseRetriever {
 
     this.cache.set(cacheKey, sortedDocs);
     return sortedDocs;
-  }
-}
-
-export async function buildRetriever(
-  vectorStore: FaissStore,
-  documents: Document[] | null = null,
-  k: number = 4,
-  useHybrid: boolean = true,
-  metadataFilter: Record<string, any> | null = null,
-  queryExpansionsPath: string | null = null,
-  queryExpansions: QueryExpansionsConfig | null = null
-): Promise<BaseRetriever> {
-  if (useHybrid) {
-    if (!documents) {
-      throw new Error("documents parameter is required for hybrid search");
-    }
-    return new HybridRetriever(
-      vectorStore,
-      documents,
-      k,
-      0.45,
-      0.55,
-      metadataFilter || {},
-      queryExpansionsPath,
-      queryExpansions
-    );
-  } else {
-    const searchKwargs: any = { k };
-    if (metadataFilter) {
-      searchKwargs.filter = metadataFilter;
-    }
-    return vectorStore.asRetriever(searchKwargs);
   }
 }

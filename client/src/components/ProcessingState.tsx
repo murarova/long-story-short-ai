@@ -1,11 +1,14 @@
 import { motion } from "framer-motion";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ProcessingStateProps {
   fileName: string;
+  onCancel?: () => void;
 }
 
-export const ProcessingState = ({ fileName }: ProcessingStateProps) => {
+export const ProcessingState = ({ fileName, onCancel }: ProcessingStateProps) => {
   const { t } = useLanguage();
 
   return (
@@ -55,6 +58,25 @@ export const ProcessingState = ({ fileName }: ProcessingStateProps) => {
       >
         {t("processing.analyzing")}
       </motion.p>
+
+      {onCancel && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="mt-6"
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            className="rounded-xl gap-2"
+          >
+            <X className="w-4 h-4" />
+            {t("processing.cancel")}
+          </Button>
+        </motion.div>
+      )}
     </motion.div>
   );
 };

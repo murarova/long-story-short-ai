@@ -118,6 +118,34 @@ export const getTranscript =
     }
   };
 
+export const deleteIngestion =
+  (svc: IngestionService) =>
+  async (req: express.Request, res: express.Response) => {
+    const ownerId = String(res.locals.ownerId || "");
+    const record = svc.get(ownerId, req.params.id);
+    if (!record) return res.status(404).json({ error: "Not found" });
+
+    try {
+      await svc.delete(req.params.id);
+      res.json({ ok: true });
+    } catch (e: unknown) {
+      res.status(500).json({ error: e instanceof Error ? e.message : "Error" });
+    }
+  };
+
+export const deleteAllIngestions =
+  (svc: IngestionService) =>
+  async (_req: express.Request, res: express.Response) => {
+    const ownerId = String(res.locals.ownerId || "");
+
+    try {
+      await svc.deleteAllForOwner(ownerId);
+      res.json({ ok: true });
+    } catch (e: unknown) {
+      res.status(500).json({ error: e instanceof Error ? e.message : "Error" });
+    }
+  };
+
 export const askIngestion =
   (svc: IngestionService) =>
   async (req: express.Request, res: express.Response) => {

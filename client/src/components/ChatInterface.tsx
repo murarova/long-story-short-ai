@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, ArrowLeft, Sparkles, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { askIngestion, type EvaluationScores } from "@/lib/ragApi";
+import { toast } from "@/hooks/use-toast";
+import { askIngestion } from "@/lib/ragApi";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-  evaluation?: EvaluationScores;
+  toolCalls?: string[];
 }
 
 interface ChatInterfaceProps {
@@ -58,18 +59,15 @@ export const ChatInterface = ({
           id: Date.now().toString(),
           role: "assistant",
           content: out.answer,
-          evaluation: out.evaluation,
+          toolCalls: out.toolCalls,
         },
       ]);
     } catch (e: unknown) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: "assistant",
-          content: errorMessage(e),
-        },
-      ]);
+      toast({
+        title: t("chat.errorTitle"),
+        description: errorMessage(e),
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +110,6 @@ export const ChatInterface = ({
           : "w-full max-w-3xl mx-auto h-[600px] flex flex-col"
       }
     >
-      {/* Header */}
       {!embedded && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -138,167 +135,165 @@ export const ChatInterface = ({
         </motion.div>
       )}
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto py-6 space-y-4">
-        {!ingestionId && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-10"
-          >
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Select an analysis from History (or upload a new file) to start
-              asking questions.
-            </p>
-          </motion.div>
-        )}
-        {messages.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-12"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-accent-soft mx-auto mb-4 flex items-center justify-center">
-              <Sparkles className="w-8 h-8 text-primary" />
-            </div>
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              Ready to explore
-            </h3>
-            <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-              Ask any question about your content, or try one of the suggestions
-              below.
-            </p>
-          </motion.div>
-        )}
-
-        <AnimatePresence mode="popLayout">
-          {messages.map((message) => (
+      <div className="flex-1 min-h-0 overflow-y-auto py-6">
+        <div className="flex min-h-full flex-col justify-end space-y-4">
+          {!ingestionId && (
             <motion.div
-              key={message.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={`flex gap-3 ${
-                message.role === "user" ? "justify-end" : ""
-              }`}
+              className="text-center py-10"
             >
-              {message.role === "assistant" && (
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                  <Sparkles className="w-4 h-4 text-primary-foreground" />
-                </div>
-              )}
-              <div className="max-w-[80%] flex flex-col gap-1.5">
-                <div
-                  className={`rounded-2xl px-4 py-3 ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground"
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">
-                    {message.content}
-                  </p>
-                </div>
-                {message.evaluation && (
-                  <div className="flex gap-1.5 px-1">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                      relevance {message.evaluation.relevance}/10
-                    </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                      groundedness {message.evaluation.groundedness}/10
-                    </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                      clarity {message.evaluation.clarity}/10
-                    </span>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                {t("chat.noIngestion")}
+              </p>
+            </motion.div>
+          )}
+          {messages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center pb-4"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-accent-soft mx-auto mb-4 flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                {t("chat.readyTitle")}
+              </h3>
+              <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                {t("chat.readySubtitle")}
+              </p>
+            </motion.div>
+          )}
+
+          <AnimatePresence mode="popLayout">
+            {messages.map((message) => (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className={`flex gap-3 ${
+                  message.role === "user" ? "justify-end" : ""
+                }`}
+              >
+                {message.role === "assistant" && (
+                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
-              </div>
-              {message.role === "user" && (
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4 text-muted-foreground" />
+                <div className="max-w-[80%] flex flex-col gap-1.5">
+                  <div
+                    className={`rounded-2xl px-4 py-3 ${
+                      message.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">
+                      {message.content}
+                    </p>
+                  </div>
+                  {message.toolCalls && message.toolCalls.length > 0 && (
+                    <div className="flex flex-wrap gap-1 px-1">
+                      {message.toolCalls.map((tool, i) => (
+                        <span
+                          key={i}
+                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground font-mono"
+                        >
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </motion.div>
-          ))}
-        </AnimatePresence>
+                {message.role === "user" && (
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
 
-        {isLoading && (
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex gap-3"
+            >
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <Sparkles className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <div className="bg-muted rounded-2xl px-4 py-3">
+                <div className="flex gap-1">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      className="w-2 h-2 bg-muted-foreground/50 rounded-full"
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{
+                        duration: 0.6,
+                        repeat: Infinity,
+                        delay: i * 0.1,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        {ingestionId && messages.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex gap-3"
+            transition={{ delay: 0.2 }}
+            className="flex flex-wrap gap-2 pb-4"
           >
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <div className="bg-muted rounded-2xl px-4 py-3">
-              <div className="flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <motion.div
-                    key={i}
-                    className="w-2 h-2 bg-muted-foreground/50 rounded-full"
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{
-                      duration: 0.6,
-                      repeat: Infinity,
-                      delay: i * 0.1,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
+            {suggestedPrompts.map((prompt) => (
+              <button
+                key={prompt}
+                onClick={() => handlePromptClick(prompt)}
+                disabled={isLoading}
+                className="px-4 py-2 text-sm bg-secondary hover:bg-muted rounded-full 
+                           text-secondary-foreground transition-colors duration-200
+                           disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {prompt}
+              </button>
+            ))}
           </motion.div>
         )}
-        <div ref={messagesEndRef} />
       </div>
-
-      {/* Suggested Prompts */}
-      {ingestionId && messages.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex flex-wrap gap-2 pb-4"
-        >
-          {suggestedPrompts.map((prompt) => (
-            <button
-              key={prompt}
-              onClick={() => handlePromptClick(prompt)}
-              disabled={isLoading}
-              className="px-4 py-2 text-sm bg-secondary hover:bg-muted rounded-full 
-                         text-secondary-foreground transition-colors duration-200
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {prompt}
-            </button>
-          ))}
-        </motion.div>
-      )}
-
-      {/* Input Area */}
-      <form onSubmit={handleSubmit} className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={t("chat.inputPlaceholder")}
-          disabled={!ingestionId || isLoading}
-          className="w-full h-14 pl-5 pr-14 rounded-xl bg-secondary/50 border border-border 
+      <div className="shrink-0 bg-background pt-4">
+        <div className="absolute bottom-[10px] left-[10px] right-[10px] bg-background">
+          <form onSubmit={handleSubmit} className="relative">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t("chat.inputPlaceholder")}
+              disabled={!ingestionId || isLoading}
+              className="w-full h-14 pl-5 pr-14 rounded-xl bg-secondary/50 border border-border 
                      text-foreground placeholder:text-muted-foreground
                      focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
                      transition-all duration-200 disabled:opacity-50"
-        />
-        <Button
-          type="submit"
-          size="icon"
-          disabled={!ingestionId || !input.trim() || isLoading}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg w-10 h-10
+            />
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!ingestionId || !input.trim() || isLoading}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg w-10 h-10
                      disabled:opacity-50 transition-all duration-200"
-        >
-          <Send className="w-4 h-4" />
-        </Button>
-      </form>
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </form>
+        </div>
+      </div>
     </motion.div>
   );
 };

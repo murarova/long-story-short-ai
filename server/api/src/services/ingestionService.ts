@@ -43,6 +43,8 @@ export type PublicIngestion = Pick<
   "id" | "status" | "error" | "createdAt" | "updatedAt"
 >;
 
+const ASK_TIMEOUT_MS = 120_000;
+
 const isProd = process.env.NODE_ENV === "production";
 
 export const uploadsDir = join(process.cwd(), "uploads");
@@ -165,9 +167,34 @@ const loadPersistedIngestions = async (
   }
 };
 
+class Mutex {
+  private queue: (() => void)[] = [];
+  private locked = false;
+
+  async acquire(): Promise<() => void> {
+    if (!this.locked) {
+      this.locked = true;
+      return () => this.release();
+    }
+    return new Promise<() => void>((resolve) => {
+      this.queue.push(() => resolve(() => this.release()));
+    });
+  }
+
+  private release(): void {
+    const next = this.queue.shift();
+    if (next) {
+      next();
+    } else {
+      this.locked = false;
+    }
+  }
+}
+
 export class IngestionService {
   private ingestions = new Map<string, IngestionRecord>();
   private cancelled = new Set<string>();
+  private askMutexes = new Map<string, Mutex>();
 
   async init(): Promise<void> {
     await mkdir(uploadsDir, { recursive: true });
@@ -202,9 +229,11 @@ export class IngestionService {
     this.cancelled.add(id);
     const record = this.ingestions.get(id);
     this.ingestions.delete(id);
+    this.askMutexes.delete(id);
     await safeUnlink(ingestionRecordPath(id));
     await safeUnlink(record?.transcriptPath ?? ingestionTranscriptPath(id));
     await safeUnlink(record?.audioPath);
+    this.cancelled.delete(id);
   }
 
   async deleteAllForOwner(ownerId: string): Promise<void> {
@@ -213,6 +242,24 @@ export class IngestionService {
       if (existing.ownerId === ownerId) toDelete.push(existingId);
     }
     for (const existingId of toDelete) await this.delete(existingId);
+
+    const hasRemainingRecords = Array.from(this.ingestions.values()).length > 0;
+    if (!hasRemainingRecords) {
+      await this.sweepDirectories();
+    }
+  }
+
+  private async sweepDirectories(): Promise<void> {
+    for (const dir of [ingestionsDir, uploadsDir]) {
+      try {
+        const files = await readdir(dir);
+        for (const file of files) {
+          await safeUnlink(join(dir, file));
+        }
+      } catch {
+        // directory may not exist
+      }
+    }
   }
 
   async createFromUpload(params: {
@@ -256,8 +303,6 @@ export class IngestionService {
           msSinceCreate: nowMs() - r.createdAt,
         });
 
-        // If a video file was uploaded, extract its audio track first and then
-        // proceed with the existing audio-only pipeline.
         if (isVideoMimeType(r.audioMimeType)) {
           const extractedPath = join(uploadsDir, `${id}.mp3`);
           try {
@@ -274,8 +319,6 @@ export class IngestionService {
             throw e;
           }
 
-          // Replace the stored path/mimetype to the extracted audio for the rest
-          // of the pipeline and for future restarts.
           await safeUnlink(r.audioPath);
           r.audioPath = extractedPath;
           r.audioMimeType = "audio/mpeg";
@@ -292,7 +335,6 @@ export class IngestionService {
           queryExpansions: params.queryExpansions,
         });
 
-        // If user uploaded a new file during processing, don't write anything.
         if (this.cancelled.has(id) || !this.ingestions.get(id)) return;
 
         const transcriptPath = join(ingestionsDir, `${id}.txt`);
@@ -443,6 +485,15 @@ export class IngestionService {
     return record;
   }
 
+  private getMutex(id: string): Mutex {
+    let mutex = this.askMutexes.get(id);
+    if (!mutex) {
+      mutex = new Mutex();
+      this.askMutexes.set(id, mutex);
+    }
+    return mutex;
+  }
+
   async ask(
     ownerId: string,
     id: string,
@@ -452,11 +503,34 @@ export class IngestionService {
     if (!record) return null;
     if (record.status !== "ready") return null;
 
-    // Fast path: reuse in-memory closure (same process lifetime).
-    if (record.ask) return await record.ask(question);
+    const mutex = this.getMutex(id);
+    const release = await mutex.acquire();
 
-    // After a server restart, we don't persist function closures.
-    // Recreate an ask function from the persisted transcript on demand.
+    try {
+      const askFn = await this.resolveAskFn(record);
+      if (!askFn) return null;
+
+      const result = await Promise.race([
+        askFn(question),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Ask timed out")),
+            ASK_TIMEOUT_MS,
+          ),
+        ),
+      ]);
+
+      return result;
+    } finally {
+      release();
+    }
+  }
+
+  private async resolveAskFn(
+    record: IngestionRecord,
+  ): Promise<((question: string) => Promise<AskResult>) | null> {
+    if (record.ask) return record.ask;
+
     if (!record.transcriptPath) return null;
     const transcriptText = await readFile(record.transcriptPath, "utf-8");
     const session = await createRagFromTranscriptText({
@@ -464,8 +538,7 @@ export class IngestionService {
       transcriptSource: record.audioOriginalName,
       queryExpansions: null,
     });
-    const ask = session.ask;
-    record.ask = ask;
-    return await ask(question);
+    record.ask = session.ask;
+    return session.ask;
   }
 }

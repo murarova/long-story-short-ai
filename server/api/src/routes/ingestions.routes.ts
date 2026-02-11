@@ -6,6 +6,8 @@ import {
   askIngestion,
   createIngestion,
   createIngestionFromLink,
+  deleteAllIngestions,
+  deleteIngestion,
   getIngestion,
   getTranscript,
 } from "../controllers/ingestionsController.js";
@@ -56,6 +58,8 @@ export const createIngestionsRouter = (
   router.get("/ingestions/:id", getIngestion(svc));
   router.get("/ingestions/:id/transcript", getTranscript(svc));
   router.post("/ingestions/:id/ask", askIngestion(svc));
+  router.delete("/ingestions/:id", deleteIngestion(svc));
+  router.delete("/ingestions", deleteAllIngestions(svc));
 
   return router;
 };
